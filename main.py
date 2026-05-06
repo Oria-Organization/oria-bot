@@ -1,9 +1,7 @@
 import asyncio
 import os
-from oria_communauté.bot1 import bot1
-from nexara_officiel.bot2 import bot2
-import discord
-from discord.ext import commands
+
+from bot.bot import bot
 
 try:
     from dotenv import load_dotenv
@@ -11,31 +9,17 @@ try:
 except ImportError:
     pass
 
-def get_intents():
-    intents = discord.Intents.default()
-    intents.message_content = True
-    intents.members = True
-    intents.dm_messages = True
-    intents.guilds = True
-    return intents
 
-async def run_bot(bot, token, name):
+async def main():
+    token = os.getenv("TOKEN_BOT")
     if not token:
-        print(f"❌ Token manquant pour {name}. Vérifie la configuration de ton hébergeur ou le .env")
+        print("-> Token manquant pour le bot.")
         return
     try:
         await bot.start(token)
     except Exception as e:
-        print(f"❌ {name} n'a pas pu démarrer: {e}")
+        print(f"-> Le bot n'a pas pu démarrer : {e}")
 
-async def main():
-    token1 = os.getenv("TOKEN_BOT1")
-    token2 = os.getenv("TOKEN_BOT2")
-
-    await asyncio.gather(
-        run_bot(bot1, token1, "Bot1"),
-        run_bot(bot2, token2, "Bot2")
-    )
 
 if __name__ == "__main__":
     asyncio.run(main())
