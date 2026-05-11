@@ -145,5 +145,3 @@ async def on_ready():
     await bot.tree.sync()
     setup_dm_listener(bot)
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")
-    print("-> Slash commands synchronisées.")
-    print("-> Écoute des MPs activée.")
