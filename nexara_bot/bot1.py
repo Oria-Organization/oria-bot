@@ -40,22 +40,14 @@ class TextModal(discord.ui.Modal):
     Modal générique à texte long, réutilisable pour n'importe quelle commande.
 
     Paramètres :
-        title     -> Titre du modal
-        label     -> Label du champ texte
-        callback  -> Fonction async appelée avec (interaction, contenu)
+        title       -> Titre du modal
+        label       -> Label du champ texte
+        placeholder -> Texte d'aide affiché dans le champ vide
+        callback    -> Fonction async appelée avec (interaction, contenu)
     """
-
-    champ = discord.ui.TextInput(
-        label="Message",  # Sera remplacé dynamiquement
-        style=discord.TextStyle.long,
-        placeholder="Écris ici...",
-        required=True,
-        max_length=2000
-    )
 
     def __init__(self, title: str, label: str, placeholder: str, callback):
         super().__init__(title=title)
-        # On redéfinit le champ dynamiquement
         self.champ = discord.ui.TextInput(
             label=label,
             style=discord.TextStyle.long,
