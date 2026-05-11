@@ -318,35 +318,32 @@ def md_to_embeds(
         if intro_text:
             sections.append(("\u200b", intro_text))
 
-    # -------------------------------------------------------------------
-    # Pagination embeds
-    # -------------------------------------------------------------------
+# -------------------------------------------------------------------
+# Pagination embeds
+# -------------------------------------------------------------------
 
-    MAX_EMBED_CHARS = 5800
-    MAX_FIELD_VALUE = 1024
+MAX_EMBED_CHARS = 5800
+MAX_FIELD_VALUE = 1024
 
-    embeds: list[discord.Embed] = []
+embeds: list[discord.Embed] = []
 
-    current_embed = discord.Embed(
-        title=title,
-        colour=colour
-    )
+current_embed = discord.Embed(
+    title=title,
+    colour=colour
+)
 
-    current_chars = len(title)
+current_chars = len(title)
 
-    def _truncate(text: str, limit: int = MAX_FIELD_VALUE) -> str:
-
-        if len(text) <= limit:
-            return text
-
-        return text[: limit - 3] + "..."
+# -------------------------------------------------------------------
+# Ajout des sections + pagination réelle
+# -------------------------------------------------------------------
 
 for (heading, body) in sections:
 
     if not body:
         body = "*— vide —*"
 
-    # Découpe du body en morceaux de 1024 chars max
+    # Découpe du body en morceaux de 1024 caractères max
     chunks = [
         body[i:i + MAX_FIELD_VALUE]
         for i in range(0, len(body), MAX_FIELD_VALUE)
@@ -362,7 +359,7 @@ for (heading, body) in sections:
 
         field_chars = len(field_name) + len(chunk)
 
-        # nouvel embed si dépassement
+        # Nouvel embed si dépassement
         if (
             current_chars + field_chars > MAX_EMBED_CHARS
             and current_embed.fields
@@ -385,16 +382,20 @@ for (heading, body) in sections:
 
         current_chars += field_chars
 
-    if current_embed.fields or not embeds:
-        embeds.append(current_embed)
+# -------------------------------------------------------------------
+# Finalisation
+# -------------------------------------------------------------------
 
-    # Numérotation des pages
-    total = len(embeds)
+if current_embed.fields or not embeds:
+    embeds.append(current_embed)
 
-    for i, embed in enumerate(embeds):
-        embed.set_footer(text=f"Page {i + 1} / {total}")
+# Numérotation des pages
+total = len(embeds)
 
-    return embeds
+for i, embed in enumerate(embeds):
+    embed.set_footer(text=f"Page {i + 1} / {total}")
+
+return embeds
 
 
 # ---------------------------------------------------------------------------
