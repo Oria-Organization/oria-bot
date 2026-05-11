@@ -318,84 +318,84 @@ def md_to_embeds(
         if intro_text:
             sections.append(("\u200b", intro_text))
 
-                # -------------------------------------------------------------------
-                # Pagination embeds
-                # -------------------------------------------------------------------
+            # -------------------------------------------------------------------
+            # Pagination embeds
+            # -------------------------------------------------------------------
 
-                MAX_EMBED_CHARS = 5800
-                MAX_FIELD_VALUE = 1024
+            MAX_EMBED_CHARS = 5800
+            MAX_FIELD_VALUE = 1024
 
-                embeds: list[discord.Embed] = []
+            embeds: list[discord.Embed] = []
 
-                current_embed = discord.Embed(
-                    title=title,
-                    colour=colour
-                )
+            current_embed = discord.Embed(
+                title=title,
+                colour=colour
+            )
 
-                current_chars = len(title)
+            current_chars = len(title)
 
-                # -------------------------------------------------------------------
-                # Ajout des sections + pagination réelle
-                # -------------------------------------------------------------------
+            # -------------------------------------------------------------------
+            # Ajout des sections + pagination réelle
+            # -------------------------------------------------------------------
 
-                for (heading, body) in sections:
+            for (heading, body) in sections:
 
-                    if not body:
-                        body = "*— vide —*"
+                if not body:
+                    body = "*— vide —*"
 
-                    # Découpe du body en morceaux de 1024 caractères max
-                    chunks = [
-                        body[i:i + MAX_FIELD_VALUE]
-                        for i in range(0, len(body), MAX_FIELD_VALUE)
-                    ]
+                # Découpe du body en morceaux de 1024 caractères max
+                chunks = [
+                    body[i:i + MAX_FIELD_VALUE]
+                    for i in range(0, len(body), MAX_FIELD_VALUE)
+                ]
 
-                    for chunk_index, chunk in enumerate(chunks):
+                for chunk_index, chunk in enumerate(chunks):
 
-                        field_name = heading
+                    field_name = heading
 
-                        # Si plusieurs morceaux → ajoute "(suite)"
-                        if chunk_index > 0:
-                            field_name = f"{heading} (suite)"
+                    # Si plusieurs morceaux → ajoute "(suite)"
+                    if chunk_index > 0:
+                        field_name = f"{heading} (suite)"
 
-                        field_chars = len(field_name) + len(chunk)
+                    field_chars = len(field_name) + len(chunk)
 
-                        # Nouvel embed si dépassement
-                        if (
-                            current_chars + field_chars > MAX_EMBED_CHARS
-                            and current_embed.fields
-                        ):
+                    # Nouvel embed si dépassement
+                    if (
+                        current_chars + field_chars > MAX_EMBED_CHARS
+                        and current_embed.fields
+                    ):
 
-                            embeds.append(current_embed)
+                        embeds.append(current_embed)
 
-                            current_embed = discord.Embed(
-                                title=f"{title} (suite)",
-                                colour=colour
-                            )
-
-                            current_chars = len(title) + 7
-
-                        current_embed.add_field(
-                            name=field_name,
-                            value=chunk,
-                            inline=False,
+                        current_embed = discord.Embed(
+                            title=f"{title} (suite)",
+                            colour=colour
                         )
 
-                        current_chars += field_chars
+                        current_chars = len(title) + 7
 
-                # -------------------------------------------------------------------
-                # Finalisation
-                # -------------------------------------------------------------------
+                    current_embed.add_field(
+                        name=field_name,
+                        value=chunk,
+                        inline=False,
+                    )
 
-                if current_embed.fields or not embeds:
-                    embeds.append(current_embed)
+                    current_chars += field_chars
 
-                # Numérotation des pages
-                total = len(embeds)
+            # -------------------------------------------------------------------
+            # Finalisation
+            # -------------------------------------------------------------------
 
-                for i, embed in enumerate(embeds):
-                    embed.set_footer(text=f"Page {i + 1} / {total}")
+            if current_embed.fields or not embeds:
+                embeds.append(current_embed)
 
-                return embeds
+            # Numérotation des pages
+            total = len(embeds)
+
+            for i, embed in enumerate(embeds):
+                embed.set_footer(text=f"Page {i + 1} / {total}")
+
+            return embeds
 
 
 # ---------------------------------------------------------------------------
