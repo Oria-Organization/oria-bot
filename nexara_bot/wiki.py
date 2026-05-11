@@ -70,15 +70,15 @@ async def fetch_md_content(session: aiohttp.ClientSession, dossier: str, fichier
 
 
 # ---------------------------------------------------------------------------
-# Construction de l'autocomplétion
+# Construction de l'autocomplétion (avec cache en mémoire)
 # ---------------------------------------------------------------------------
 
-async def get_autocomplete_choices() -> list[dict]:
-    """
-    Retourne une liste de dicts {name, value} pour l'autocomplétion slash.
-    name  = titre lisible (ex: "Fondation SCP — Rapport Alpha")
-    value = chemin identifiant (ex: "fondation_scp/rapport_alpha.md")
-    """
+# Cache global : liste de dicts {name, value}, None = pas encore chargé
+_choices_cache: Optional[list[dict]] = None
+
+
+async def _build_choices() -> list[dict]:
+    """Charge tous les choix depuis GitHub (appelé une seule fois)."""
     choices = []
     async with aiohttp.ClientSession() as session:
         try:
@@ -110,13 +110,34 @@ async def get_autocomplete_choices() -> list[dict]:
                 display = f"{dossier.replace('_', ' ').title()} — {titre}"
                 value = f"{dossier}/{fichier_name}"
 
-                # Discord limite à 100 caractères pour le name et 100 pour la value
                 choices.append({
                     "name": display[:100],
                     "value": value[:100],
                 })
 
     return choices
+
+
+async def get_autocomplete_choices() -> list[dict]:
+    """
+    Retourne la liste des choix pour l'autocomplétion.
+    Utilise le cache en mémoire — GitHub n'est appelé qu'une seule fois
+    pour tout le cycle de vie du bot.
+    """
+    global _choices_cache
+    if _choices_cache is None:
+        _choices_cache = await _build_choices()
+    return _choices_cache
+
+
+async def refresh_wiki_cache() -> None:
+    """
+    Force le rechargement du cache depuis GitHub.
+    Utile si le wiki est mis à jour sans redémarrer le bot.
+    """
+    global _choices_cache
+    _choices_cache = None
+    _choices_cache = await _build_choices()
 
 
 def _extract_title_from_md(content: str) -> str:

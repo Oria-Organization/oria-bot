@@ -169,7 +169,11 @@ async def on_ready():
         status=discord.Status.dnd,
         activity=discord.Activity(
             type=discord.ActivityType.watching,
-            name=f"V. 0.1.0.0 | {len(bot.guilds)} serveur(s)"
+            name=f"V. 0.1.1.0 | {len(bot.guilds)} serveur(s)"
         )
     )
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")
+    # Préchargement du cache wiki dès le démarrage pour que l'autocomplétion
+    # soit instantanée dès la première utilisation de /wiki
+    await wiki_module.get_autocomplete_choices()
+    print("-> Cache wiki chargé.")
