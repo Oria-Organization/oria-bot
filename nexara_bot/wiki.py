@@ -341,12 +341,26 @@ def md_to_embeds(
 
         return text[: limit - 3] + "..."
 
-    for (heading, body) in sections:
+for (heading, body) in sections:
 
-        if not body:
-            body = "*— vide —*"
+    if not body:
+        body = "*— vide —*"
 
-        field_chars = len(heading) + len(body[:MAX_FIELD_VALUE])
+    # Découpe du body en morceaux de 1024 chars max
+    chunks = [
+        body[i:i + MAX_FIELD_VALUE]
+        for i in range(0, len(body), MAX_FIELD_VALUE)
+    ]
+
+    for chunk_index, chunk in enumerate(chunks):
+
+        field_name = heading
+
+        # Si plusieurs morceaux → ajoute "(suite)"
+        if chunk_index > 0:
+            field_name = f"{heading} (suite)"
+
+        field_chars = len(field_name) + len(chunk)
 
         # nouvel embed si dépassement
         if (
@@ -364,8 +378,8 @@ def md_to_embeds(
             current_chars = len(title) + 7
 
         current_embed.add_field(
-            name=heading,
-            value=_truncate(body),
+            name=field_name,
+            value=chunk,
             inline=False,
         )
 
