@@ -4,6 +4,7 @@ from discord.ext import commands
 import os
 
 from nexara_bot.logs import send_log, build_log, setup_dm_listener
+from nexara_bot import wiki as wiki_module
 
 
 # ----------------------------
@@ -136,6 +137,26 @@ async def mp(interaction: discord.Interaction, utilisateur_id: str):
     )
 
 
+@bot.tree.command(name="wiki", description="Consulter un document du wiki Oria")
+@app_commands.describe(document="Le document à afficher")
+async def wiki(interaction: discord.Interaction, document: str):
+    await wiki_module.display_wiki_document(interaction, document)
+
+
+@wiki.autocomplete("document")
+async def wiki_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Charge dynamiquement les titres depuis GitHub à chaque appel."""
+    choices = await wiki_module.get_autocomplete_choices()
+    return [
+        app_commands.Choice(name=c["name"], value=c["value"])
+        for c in choices
+        if current.lower() in c["name"].lower()
+    ][:25]  # Discord limite à 25 choix
+
+
 # ----------------------------
 # Événements
 # ----------------------------
@@ -148,7 +169,7 @@ async def on_ready():
         status=discord.Status.dnd,
         activity=discord.Activity(
             type=discord.ActivityType.watching,
-            name=f"V. 0.0.0.0 | {len(bot.guilds)} serveur(s)"
+            name=f"V. 0.1.0.0 | {len(bot.guilds)} serveur(s)"
         )
     )
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")
