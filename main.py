@@ -9,7 +9,7 @@ except ImportError:
     pass
 
 async def main():
-    token1 = os.getenv("TOKEN_BOT1")
+    token1 = os.getenv("TOKEN_BOT2")
 
     if not token1:
         print("-> Token manquant pour le bot.")
