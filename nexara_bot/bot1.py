@@ -144,4 +144,11 @@ async def mp(interaction: discord.Interaction, utilisateur_id: str):
 async def on_ready():
     await bot.tree.sync()
     setup_dm_listener(bot)
+    await bot.change_presence(
+        status=discord.Status.dnd,
+        activity=discord.Activity(
+            type=discord.ActivityType.watching,
+            name=f"V. 0.0.0.0 | {len(bot.guilds)} serveur(s)"
+        )
+    )
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")
