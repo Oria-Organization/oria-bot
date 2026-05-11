@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import os
 
-from nexara_bot.logs import send_log, build_log
+from nexara_bot.logs import send_log, build_log, setup_dm_listener
 
 
 # ----------------------------
@@ -151,5 +151,7 @@ async def mp(interaction: discord.Interaction, utilisateur_id: str):
 @bot.event
 async def on_ready():
     await bot.tree.sync()
+    setup_dm_listener(bot)
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")
     print("-> Slash commands synchronisées.")
+    print("-> Écoute des MPs activée.")

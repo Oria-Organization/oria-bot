@@ -54,3 +54,56 @@ def build_log(title: str, color: discord.Color, fields: list[tuple[str, str, boo
     for name, value, inline in fields:
         embed.add_field(name=name, value=value, inline=inline)
     return embed
+
+
+def setup_dm_listener(bot: discord.Client) -> None:
+    """
+    Active l'écoute des MPs reçus par le bot et les log dans le salon de logs.
+    À appeler une fois au démarrage du bot (dans on_ready ou setup_hook).
+
+    Paramètres :
+        bot -> L'instance du bot Discord
+    """
+
+    @bot.event
+    async def on_message(message: discord.Message):
+        # On ignore les messages du bot lui-même
+        if message.author == bot.user:
+            return
+
+        # On vérifie que c'est bien un MP (DM) et pas un message de serveur
+        if not isinstance(message.channel, discord.DMChannel):
+            await bot.process_commands(message)
+            return
+
+        # Récupération du premier serveur en commun pour accéder au salon de logs
+        guild = None
+        for g in bot.guilds:
+            if g.get_member(message.author.id):
+                guild = g
+                break
+
+        if guild is None:
+            print(f"-> MP reçu de {message.author} mais aucun serveur en commun trouvé.")
+            return
+
+        # Construction du log
+        contenu = message.content or "*[Message sans texte - peut contenir un fichier ou une image]*"
+
+        embed = build_log(
+            title="📩 MP reçu par le bot",
+            color=discord.Color.orange(),
+            fields=[
+                ("Expéditeur", f"{message.author.mention} (`{message.author.id}`)", False),
+                ("Nom d'utilisateur", str(message.author), False),
+                ("Contenu", contenu, False),
+            ]
+        )
+
+        # Ajout des pièces jointes si présentes
+        if message.attachments:
+            attachments_list = "\n".join([a.url for a in message.attachments])
+            embed.add_field(name="Pièces jointes", value=attachments_list, inline=False)
+
+        await send_log(guild, embed)
+        await bot.process_commands(message)
