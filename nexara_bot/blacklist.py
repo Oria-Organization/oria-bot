@@ -1,6 +1,7 @@
 # nexara_bot/blacklist.py
 # Logique complète du système de blacklist
 
+import asyncio
 import discord
 import json
 import os
@@ -291,24 +292,36 @@ async def enforce_staff_blacklist_on_update(
     raison = entry["raison"] if entry else "Blacklist Staff Nexara"
     images = entry.get("images", []) if entry else []
 
+    # Petit délai pour laisser Discord finaliser l'attribution du rôle
+    await asyncio.sleep(0.5)
+
     # Retirer les rôles élevés
     for role in high_roles:
         try:
             await after.remove_roles(role, reason=f"[Blacklist Staff Nexara] {raison}")
-        except (discord.Forbidden, discord.HTTPException):
-            pass
+        except discord.Forbidden:
+            print(
+                f"-> [Blacklist Staff] Impossible de retirer le rôle '{role.name}' "
+                f"sur {after.guild.name} : permission refusée ou rôle trop haut dans la hiérarchie."
+            )
+        except discord.HTTPException as e:
+            print(f"-> [Blacklist Staff] Erreur HTTP lors du retrait du rôle '{role.name}' : {e}")
 
     # Identifier qui a attribué le rôle via l'audit log
+    # On attend un peu pour que l'audit log soit disponible
+    await asyncio.sleep(1)
     moderator = None
     try:
         async for log_entry in after.guild.audit_logs(
-            limit=5, action=discord.AuditLogAction.member_role_update
+            limit=10, action=discord.AuditLogAction.member_role_update
         ):
             if log_entry.target.id == after.id:
                 moderator = log_entry.user
                 break
-    except (discord.Forbidden, discord.HTTPException):
-        pass
+    except discord.Forbidden:
+        print(f"-> [Blacklist Staff] Pas accès aux audit logs sur {after.guild.name}.")
+    except discord.HTTPException as e:
+        print(f"-> [Blacklist Staff] Erreur HTTP audit log : {e}")
 
     if moderator:
         await _mp_tentative(
