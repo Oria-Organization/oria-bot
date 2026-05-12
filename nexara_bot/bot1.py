@@ -1,6 +1,6 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands,tasks
 import os
 
 from nexara_bot.logs import send_log, build_log, setup_dm_listener
@@ -17,10 +17,27 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+statuses = [
+    "Wiki Oria : https://oria-organization.github.io/oria-wiki/",
+    "{members} membres uniques",
+    "V. 0.3.5",
+    "{guilds} serveurs"
+]
+
+status_index = 0
 
 # ----------------------------
 # Utilitaires
 # ----------------------------
+
+def get_unique_member_count(bot: commands.Bot) -> int:
+    unique_ids = set()
+
+    for guild in bot.guilds:
+        for member in guild.members:
+            unique_ids.add(member.id)
+
+    return len(unique_ids)
 
 def get_allowed_ids() -> list[int]:
     """
@@ -257,3 +274,26 @@ async def on_member_unban(guild: discord.Guild, user: discord.User):
 async def on_member_update(before: discord.Member, after: discord.Member):
     """Retire les rôles élevés d'un staff-blacklisté dès qu'on tente de lui en attribuer."""
     await bl_module.enforce_staff_blacklist_on_update(before, after)
+
+
+
+@tasks.loop(seconds=10)
+async def change_status():
+    global status_index
+
+    members = get_unique_member_count(bot)
+
+    text = statuses[status_index].format(
+        guilds=len(bot.guilds),
+        members=members
+    )
+
+    await bot.change_presence(
+        status=discord.Status.dnd,
+        activity=discord.Activity(
+            type=discord.ActivityType.watching,
+            name=text
+        )
+    )
+
+    status_index = (status_index + 1) % len(statuses)
