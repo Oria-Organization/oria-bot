@@ -233,7 +233,7 @@ async def on_ready():
         status=discord.Status.dnd,
         activity=discord.Activity(
             type=discord.ActivityType.watching,
-            name=f"V. 0.3.0 | {len(bot.guilds)} serveurs"
+            name=f"V. 0.3.2 | {len(bot.guilds)} serveurs"
         )
     )
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")
