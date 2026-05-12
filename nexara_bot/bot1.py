@@ -18,7 +18,6 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 statuses = [
-    "Wiki : https://oria-organization.github.io/oria-wiki/",
     "{members} membres",
     "{guilds} serveurs",
     "Version 0.3.6"
