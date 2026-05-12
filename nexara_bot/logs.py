@@ -4,22 +4,39 @@ import os
 
 def get_log_channel_id() -> int:
     """Récupère l'ID du salon de logs depuis les variables d'environnement."""
-    return int(os.getenv("LOG_CHANNEL_ID", "1408354449172463686"))
+    return int(os.getenv("LOG_CHANNEL_ID", "0"))
+
+
+def get_log_guild_id() -> int:
+    """Récupère l'ID du serveur de logs depuis les variables d'environnement."""
+    return int(os.getenv("LOG_GUILD_ID", "0"))
 
 
 async def send_log(guild: discord.Guild, embed: discord.Embed) -> None:
     """
     Envoie un embed dans le salon de logs.
+    Utilise LOG_GUILD_ID + LOG_CHANNEL_ID pour trouver le bon salon,
+    peu importe depuis quel serveur la commande a été exécutée.
 
     Paramètres :
-        guild  -> Le serveur Discord
+        guild  -> L'instance du bot (ou n'importe quel guild, utilisé pour accéder au bot)
         embed  -> L'embed à envoyer
     """
     log_channel_id = get_log_channel_id()
-    log_channel = guild.get_channel(log_channel_id)
+    log_guild_id = get_log_guild_id()
+
+    # On récupère le bon serveur via le bot
+    bot = guild._state._get_client()
+    log_guild = bot.get_guild(log_guild_id)
+
+    if log_guild is None:
+        print(f"-> Serveur de logs introuvable (ID: {log_guild_id})")
+        return
+
+    log_channel = log_guild.get_channel(log_channel_id)
 
     if log_channel is None:
-        print(f"-> Salon de logs introuvable (ID: {log_channel_id})")
+        print(f"-> Salon de logs introuvable (ID: {log_channel_id}) sur le serveur {log_guild.name}")
         return
 
     try:
@@ -76,15 +93,12 @@ def setup_dm_listener(bot: discord.Client) -> None:
             await bot.process_commands(message)
             return
 
-        # Récupération du premier serveur en commun pour accéder au salon de logs
-        guild = None
-        for g in bot.guilds:
-            if g.get_member(message.author.id):
-                guild = g
-                break
+        # On utilise le serveur de logs directement plutôt que le premier serveur en commun
+        log_guild_id = get_log_guild_id()
+        guild = bot.get_guild(log_guild_id)
 
         if guild is None:
-            print(f"-> MP reçu de {message.author} mais aucun serveur en commun trouvé.")
+            print(f"-> MP reçu de {message.author} mais serveur de logs introuvable.")
             return
 
         # Construction du log
