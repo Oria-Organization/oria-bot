@@ -20,7 +20,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 statuses = [
     "Wiki Oria : https://oria-organization.github.io/oria-wiki/",
     "{members} membres uniques",
-    "V. 0.3.5",
+    "V. 0.3.6",
     "{guilds} serveurs"
 ]
 
@@ -246,13 +246,10 @@ async def unbl(interaction: discord.Interaction, utilisateur_id: str, raison: st
 async def on_ready():
     await bot.tree.sync()
     setup_dm_listener(bot)
-    await bot.change_presence(
-        status=discord.Status.dnd,
-        activity=discord.Activity(
-            type=discord.ActivityType.watching,
-            name=f"V. 0.3.4 | {len(bot.guilds)} serveurs"
-        )
-    )
+
+    if not change_status.is_running():
+        change_status.start()
+
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")
     await wiki_module.get_autocomplete_choices()
     print("-> Cache wiki chargé.")
