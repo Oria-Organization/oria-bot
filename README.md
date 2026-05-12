@@ -12,14 +12,3 @@ Quand **Y** augmente, une nouvelle fonctionnalité a été ajoutée au bot (nouv
 
 ## V.0.0.**Z** — Patch
 Quand **Z** augmente, un bug a été corrigé ou une fonctionnalité existante a été améliorée sans ajout de nouveau contenu.
-
----
-
-## Historique
-
-| Version | Description |
-|---------|-------------|
-| V.0.0.0 | Initialisation du bot |
-| V.0.1.0 | Ajout de la commande `/mp` |
-| V.0.2.0 | Ajout de la commande `/wiki` |
-| V.0.2.1 | Fix autocomplétion `/wiki` (cache + frontmatter YAML) |
