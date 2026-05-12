@@ -517,14 +517,32 @@ async def cmd_unbl(
 
     bl_type = entry["type"]
     username = entry.get("username", str(uid))
+
+    # On retire d'abord de la blacklist AVANT de débannir,
+    # pour que l'event on_member_unban ne rebannisse pas immédiatement
     removed = remove_blacklist(uid)
 
     if not removed:
         await interaction.response.send_message("❌ Impossible de retirer la blacklist.", ephemeral=True)
         return
 
+    # Si c'était un ban, on débannit sur tous les serveurs où il est banni
+    if bl_type == "ban":
+        for guild in bot.guilds:
+            try:
+                await guild.unban(
+                    discord.Object(id=uid),
+                    reason=f"[Unbl Nexara] {raison}",
+                )
+            except discord.NotFound:
+                pass  # Pas banni sur ce serveur, on ignore
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+
     await interaction.response.send_message(
-        f"✅ **{username}** (`{uid}`) retiré de la blacklist.", ephemeral=True
+        f"✅ **{username}** (`{uid}`) retiré de la blacklist"
+        + (" et débanni de tous les serveurs." if bl_type == "ban" else "."),
+        ephemeral=True
     )
 
     embed = build_log(
