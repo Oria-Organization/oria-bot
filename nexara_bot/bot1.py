@@ -198,7 +198,7 @@ async def blacklist(
 @bot.tree.command(name="blacklists", description="Consulter la fiche d'un membre blacklisté")
 @app_commands.describe(utilisateur="Le membre blacklisté à consulter")
 async def blacklists(interaction: discord.Interaction, utilisateur: str):
-    await bl_module.cmd_blacklists(interaction, utilisateur)
+    await bl_module.cmd_blacklists(interaction, utilisateur, get_allowed_ids())
 
 
 @blacklists.autocomplete("utilisateur")
@@ -233,7 +233,7 @@ async def on_ready():
         status=discord.Status.dnd,
         activity=discord.Activity(
             type=discord.ActivityType.watching,
-            name=f"V. 0.3.2 | {len(bot.guilds)} serveurs"
+            name=f"V. 0.3.4 | {len(bot.guilds)} serveurs"
         )
     )
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")

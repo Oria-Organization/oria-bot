@@ -474,9 +474,87 @@ async def cmd_blacklist_ban(
     await send_log(interaction.guild, embed)
 
 
+# ---------------------------------------------------------------------------
+# Modal de modification de raison
+# ---------------------------------------------------------------------------
+
+class EditRaisonModal(discord.ui.Modal, title="Modifier la raison"):
+    """Modal permettant de modifier la raison d'une blacklist."""
+
+    nouvelle_raison = discord.ui.TextInput(
+        label="Nouvelle raison",
+        style=discord.TextStyle.long,
+        placeholder="Entrez la nouvelle raison...",
+        required=True,
+        max_length=500,
+    )
+
+    def __init__(self, user_id: str, raison_actuelle: str):
+        super().__init__()
+        self.user_id = user_id
+        self.nouvelle_raison.default = raison_actuelle
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        from nexara_bot.logs import send_log, build_log
+
+        data = _load()
+        entry = data["blacklist"].get(self.user_id)
+        if not entry:
+            await interaction.response.send_message("❌ Entrée introuvable.", ephemeral=True)
+            return
+
+        ancienne_raison = entry["raison"]
+        entry["raison"] = self.nouvelle_raison.value
+        _save(data)
+
+        await interaction.response.send_message(
+            f"✅ Raison mise à jour pour `{entry.get('username', self.user_id)}`.",
+            ephemeral=True,
+        )
+
+        embed = build_log(
+            title="✏️ Raison de blacklist modifiée",
+            color=discord.Color.blurple(),
+            fields=[
+                ("Membre", f"{entry.get('username', self.user_id)} (`{self.user_id}`)", False),
+                ("Ancienne raison", ancienne_raison, False),
+                ("Nouvelle raison", self.nouvelle_raison.value, False),
+                ("Modifié par", f"{interaction.user.mention} (`{interaction.user.id}`)", False),
+            ],
+        )
+        await send_log(interaction.guild, embed)
+
+
+# ---------------------------------------------------------------------------
+# Vue avec bouton Modifier réservé aux admins
+# ---------------------------------------------------------------------------
+
+class BlacklistView(discord.ui.View):
+    """Vue attachée à /blacklists avec un bouton Modifier réservé aux admins."""
+
+    def __init__(self, user_id: str, raison_actuelle: str, allowed_ids: list[int]):
+        super().__init__(timeout=120)
+        self.user_id = user_id
+        self.raison_actuelle = raison_actuelle
+        self.allowed_ids = allowed_ids
+
+    @discord.ui.button(label="✏️ Modifier la raison", style=discord.ButtonStyle.primary)
+    async def modifier(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id not in self.allowed_ids:
+            await interaction.response.send_message(
+                "❌ Tu n'es pas autorisé à modifier une blacklist.",
+                ephemeral=True,
+            )
+            return
+        await interaction.response.send_modal(
+            EditRaisonModal(self.user_id, self.raison_actuelle)
+        )
+
+
 async def cmd_blacklists(
     interaction: discord.Interaction,
-    utilisateur: str,  # valeur venant de l'autocomplétion = user_id (str)
+    utilisateur: str,
+    allowed_ids: list[int],
 ) -> None:
     entry = get_all_blacklisted().get(utilisateur)
     if not entry:
@@ -499,15 +577,20 @@ async def cmd_blacklists(
     embed.add_field(name="ID", value=utilisateur, inline=True)
     embed.add_field(name="Type", value=entry["type"].upper(), inline=True)
     embed.add_field(name="Raison", value=entry["raison"], inline=False)
-    embed.add_field(name="Ajouté par", value=f"{entry.get('added_by_name', '?')} (`{entry.get('added_by', '?')}`)", inline=False)
+    embed.add_field(name="Ajouté par", value=f"{entry.get('added_by_name', '?')}" + f" (`{entry.get('added_by', '?')}`)", inline=False)
     embed.add_field(name="Date", value=added_at, inline=False)
 
     if images:
         embed.add_field(name="Preuves", value="\n".join(images), inline=False)
         embed.set_image(url=images[0])
 
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    view = BlacklistView(
+        user_id=utilisateur,
+        raison_actuelle=entry["raison"],
+        allowed_ids=allowed_ids,
+    )
 
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 async def cmd_unbl(
     interaction: discord.Interaction,
