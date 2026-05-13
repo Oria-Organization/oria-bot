@@ -530,17 +530,17 @@ class EditRaisonModal(discord.ui.Modal, title="Modifier la raison"):
 # ---------------------------------------------------------------------------
 
 class BlacklistView(discord.ui.View):
-    """Vue attachée à /blacklists avec un bouton Modifier réservé aux admins."""
+    """Vue attachée à /blacklists avec un bouton Modifier réservé au staff."""
 
-    def __init__(self, user_id: str, raison_actuelle: str, allowed_ids: list[int]):
+    def __init__(self, user_id: str, raison_actuelle: str, is_staff_check):
         super().__init__(timeout=120)
         self.user_id = user_id
         self.raison_actuelle = raison_actuelle
-        self.allowed_ids = allowed_ids
+        self.is_staff_check = is_staff_check
 
     @discord.ui.button(label="✏️ Modifier la raison", style=discord.ButtonStyle.primary)
     async def modifier(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id not in self.allowed_ids:
+        if not self.is_staff_check(interaction.user):
             await interaction.response.send_message(
                 "❌ Tu n'es pas autorisé à modifier une blacklist.",
                 ephemeral=True,
@@ -554,7 +554,7 @@ class BlacklistView(discord.ui.View):
 async def cmd_blacklists(
     interaction: discord.Interaction,
     utilisateur: str,
-    allowed_ids: list[int],
+    is_staff_check,
 ) -> None:
     entry = get_all_blacklisted().get(utilisateur)
     if not entry:
@@ -587,7 +587,7 @@ async def cmd_blacklists(
     view = BlacklistView(
         user_id=utilisateur,
         raison_actuelle=entry["raison"],
-        allowed_ids=allowed_ids,
+        is_staff_check=is_staff_check,
     )
 
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
