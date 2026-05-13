@@ -6,6 +6,7 @@ import os
 from nexara_bot.logs import send_log, build_log, setup_dm_listener
 from nexara_bot import wiki as wiki_module
 from nexara_bot import blacklist as bl_module
+from nexara_bot import addwiki as addwiki_module
 
 # ----------------------------
 # IDs staff (depuis .env)
@@ -140,6 +141,34 @@ async def wiki_autocomplete(
     ][:25]
 
 
+@bot.tree.command(name="creer_document", description="Proposer un nouveau document wiki")
+@app_commands.describe(proposition="Le wiki dans lequel proposer le document")
+async def creer_document(interaction: discord.Interaction, proposition: str):
+    await addwiki_module.cmd_creer_document(interaction, proposition)
+
+
+@creer_document.autocomplete("proposition")
+async def creer_document_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    return await addwiki_module.proposition_autocomplete(interaction, current)
+
+
+@bot.tree.command(name="modifier_document", description="Modifier une de tes propositions wiki ouvertes")
+@app_commands.describe(document="La proposition à modifier")
+async def modifier_document(interaction: discord.Interaction, document: str):
+    await addwiki_module.cmd_modifier_document(interaction, document)
+
+
+@modifier_document.autocomplete("document")
+async def modifier_document_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    return await addwiki_module.user_documents_autocomplete(interaction, current)
+
+
 # ----------------------------
 # Commandes slash — staff uniquement
 # @app_commands.default_permissions(manage_guild=True) masque la commande
@@ -242,6 +271,23 @@ async def wiki_refresh(interaction: discord.Interaction):
         await send_log(log_guild, embed)
 
     await interaction.followup.send("✅ Cache wiki rechargé avec succès.", ephemeral=True)
+
+
+@bot.tree.command(name="view_document", description="Voir et gérer une proposition wiki ouverte (staff uniquement)")
+@app_commands.describe(document="La proposition wiki à consulter")
+@app_commands.default_permissions(manage_guild=True)
+async def view_document(interaction: discord.Interaction, document: str):
+    await addwiki_module.cmd_view_document(interaction, document, is_staff)
+
+
+@view_document.autocomplete("document")
+async def view_document_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    if not is_staff(interaction.user):
+        return []
+    return await addwiki_module.all_documents_autocomplete(interaction, current)
 
 
 @bot.tree.command(name="blacklist-staff", description="Blacklister un membre du staff (retire ses rôles élevés sur tous les serveurs)")
