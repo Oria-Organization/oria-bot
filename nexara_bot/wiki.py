@@ -427,6 +427,42 @@ def _extract_title_from_md(content: str) -> str:
 # Conversion Markdown → liste d'Embeds Discord (pagination)
 # ---------------------------------------------------------------------------
 
+def _split_body_into_chunks(body: str, max_size: int = 1024) -> list[str]:
+    """
+    Découpe un bloc de texte en morceaux respectant la limite max_size,
+    en coupant proprement sur les sauts de ligne (jamais au milieu d'une ligne).
+    """
+    if not body:
+        return ["*— vide —*"]
+
+    lines = body.splitlines(keepends=True)
+    chunks: list[str] = []
+    current = ""
+
+    for line in lines:
+        # Si la ligne seule dépasse max_size, on la force quand même
+        if len(line) > max_size:
+            if current:
+                chunks.append(current.rstrip())
+                current = ""
+            # Découpe forcée caractère par caractère
+            for i in range(0, len(line), max_size):
+                chunks.append(line[i:i + max_size].rstrip())
+            continue
+
+        if len(current) + len(line) > max_size:
+            if current:
+                chunks.append(current.rstrip())
+            current = line
+        else:
+            current += line
+
+    if current.strip():
+        chunks.append(current.rstrip())
+
+    return chunks if chunks else ["*— vide —*"]
+
+
 def md_to_embeds(
     content: str,
     colour: discord.Colour = discord.Colour.blurple()
@@ -438,37 +474,28 @@ def md_to_embeds(
     Règles :
     - Le titre de l'embed principal = titre YAML OU premier #
     - Chaque ## crée un field dans l'embed
-    - Si le total dépasse ~5800 caractères, on coupe en plusieurs embeds
+    - Les sections trop longues sont découpées proprement sur les sauts de ligne
+    - Si le total dépasse ~5800 caractères, on crée un nouvel embed (page suivante)
+    - Les boutons Précédent / Suivant permettent de naviguer
     """
 
     lines = content.splitlines()
-
-    # -------------------------------------------------------------------
-    # Titre
-    # -------------------------------------------------------------------
-
     title = _extract_title_from_md(content)[:256]
 
     sections: list[tuple[str, str]] = []
-
     current_heading: Optional[str] = None
     current_lines: list[str] = []
-
     intro_lines: list[str] = []
-
     in_yaml = False
 
     for i, line in enumerate(lines):
-
         stripped = line.strip()
 
         # Ignore le frontmatter YAML
         if stripped == "---":
-
             if i == 0:
                 in_yaml = True
                 continue
-
             elif in_yaml:
                 in_yaml = False
                 continue
@@ -476,133 +503,88 @@ def md_to_embeds(
         if in_yaml:
             continue
 
-        # Ignore le titre markdown principal
+        # Ignore le titre markdown principal (déjà utilisé comme titre embed)
         if stripped.startswith("# "):
             continue
 
-        # Sous-sections
+        # Sous-sections ##
         if stripped.startswith("## "):
-
             if current_heading is None:
-
                 intro_text = "\n".join(intro_lines).strip()
-
                 if intro_text:
                     sections.append(("\u200b", intro_text))
-
             else:
-
-                sections.append((
-                    current_heading,
-                    "\n".join(current_lines).strip()
-                ))
-
+                sections.append((current_heading, "\n".join(current_lines).strip()))
             current_heading = stripped[3:].strip()
             current_lines = []
-
         else:
-
             if current_heading is None:
                 intro_lines.append(line)
-
             else:
                 current_lines.append(line)
 
     # Dernière section
     if current_heading is not None:
-
-        sections.append((
-            current_heading,
-            "\n".join(current_lines).strip()
-        ))
-
+        sections.append((current_heading, "\n".join(current_lines).strip()))
     elif intro_lines:
-
         intro_text = "\n".join(intro_lines).strip()
-
         if intro_text:
             sections.append(("\u200b", intro_text))
 
+    # Si aucune section, tout le body en un seul field
+    if not sections:
+        body = "\n".join(
+            l for l in lines
+            if not l.strip().startswith("---") and not l.strip().startswith("title:")
+        ).strip()
+        sections = [("\u200b", body or "*— vide —*")]
+
     # -------------------------------------------------------------------
-    # Pagination embeds
+    # Pagination : on construit les embeds field par field
+    # Chaque section trop longue est découpée proprement sur les sauts de ligne
     # -------------------------------------------------------------------
 
-    MAX_EMBED_CHARS = 5800
+    MAX_EMBED_CHARS = 5500  # marge de sécurité sous la limite Discord de 6000
     MAX_FIELDS = 25
     MAX_FIELD_NAME = 256
-    MAX_FIELD_VALUE = 1024
 
     embeds: list[discord.Embed] = []
-
-    current_embed = discord.Embed(
-        title=title,
-        colour=colour
-    )
-
+    current_embed = discord.Embed(title=title, colour=colour)
     current_chars = len(title)
 
-    # -------------------------------------------------------------------
-    # Ajout des sections + pagination réelle
-    # -------------------------------------------------------------------
+    def _flush_embed():
+        nonlocal current_embed, current_chars
+        embeds.append(current_embed)
+        current_embed = discord.Embed(title=f"{title} (suite)"[:256], colour=colour)
+        current_chars = len(current_embed.title or "")
 
     for (heading, body) in sections:
-
-        if not body:
-            body = "*— vide —*"
-
-        # Découpe du body en morceaux de 1024 caractères max
-        chunks = [
-            body[i:i + MAX_FIELD_VALUE]
-            for i in range(0, len(body), MAX_FIELD_VALUE)
-        ]
+        chunks = _split_body_into_chunks(body)
 
         for chunk_index, chunk in enumerate(chunks):
-
-            field_name = heading or "\u200b"
-
-            # Si plusieurs morceaux → ajoute "(suite)"
+            field_name = (heading or "\u200b")
             if chunk_index > 0:
                 field_name = f"{field_name} (suite)"
-
             field_name = field_name[:MAX_FIELD_NAME]
+
             field_chars = len(field_name) + len(chunk)
 
-            # Nouvel embed si dépassement
-            if (
-                current_embed.fields
-                and (
-                    current_chars + field_chars > MAX_EMBED_CHARS
-                    or len(current_embed.fields) >= MAX_FIELDS
-                )
+            # Nouvel embed si on dépasse les limites
+            if current_embed.fields and (
+                current_chars + field_chars > MAX_EMBED_CHARS
+                or len(current_embed.fields) >= MAX_FIELDS
             ):
+                _flush_embed()
 
-                embeds.append(current_embed)
-
-                current_embed = discord.Embed(
-                    title=f"{title} (suite)"[:256],
-                    colour=colour
-                )
-
-                current_chars = len(current_embed.title or "")
-
-            current_embed.add_field(
-                name=field_name,
-                value=chunk,
-                inline=False,
-            )
-
+            current_embed.add_field(name=field_name, value=chunk, inline=False)
             current_chars += field_chars
 
-    # -------------------------------------------------------------------
     # Finalisation
-    # -------------------------------------------------------------------
-
     if current_embed.fields or not embeds:
         embeds.append(current_embed)
 
     # Numérotation des pages
     total = len(embeds)
-
     for i, embed in enumerate(embeds):
         embed.set_footer(text=f"Page {i + 1} / {total}")
 
