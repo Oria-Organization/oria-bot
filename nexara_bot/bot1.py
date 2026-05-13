@@ -331,7 +331,6 @@ async def on_ready():
 
     print(f"-> Bot connecté en tant que {bot.user} (ID: {bot.user.id})")
     await wiki_module.get_autocomplete_choices()
-    print("-> Cache wiki chargé.")
 
 
 @bot.event
