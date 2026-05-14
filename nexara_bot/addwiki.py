@@ -378,8 +378,7 @@ class GitHubClient:
             raise GitHubAPIError("Session GitHub non initialisée.")
 
         clean_path = path.strip("/")
-        url = f"{GITHUB_API_ROOT}/repos/{self.config.repo_full_name}/{clean_path}"
-
+        url = f"{GITHUB_API_ROOT}/repos/{self.config.repo_full_name}/{clean_path}".rstrip("/")
         async with self.session.request(
             method,
             url,
