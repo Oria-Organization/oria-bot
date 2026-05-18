@@ -1038,14 +1038,14 @@ class CreateDocumentModal(discord.ui.Modal):
         self.document_name = discord.ui.TextInput(
             label="Nom du document",
             style=discord.TextStyle.short,
-            placeholder="Exemple : ARCHIVES ou 9454",
+            placeholder="Exemple: suivre la nomenclature du guide.",
             required=True,
             max_length=80,
         )
         self.document_title = discord.ui.TextInput(
             label="Titre du document",
             style=discord.TextStyle.short,
-            placeholder="Titre affiché dans le frontmatter YAML",
+            placeholder="Titre affiché dans le frontmatter YAML.",
             required=True,
             max_length=200,
         )
