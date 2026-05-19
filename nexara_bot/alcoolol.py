@@ -33,12 +33,18 @@ def traduire_standard(mot: str) -> str:
 
 # ----------------------------
 # MODE AVANCÉ
-# Coucou -> Colololcololol
-# règle: chaque lettre devient lettre + ol (sans logique voyelle)
+# règle: chaque lettre devient lettre + ol (avec logique voyelle)
 # ----------------------------
 def traduire_avance(mot: str) -> str:
-    return "".join(c + "ol" for c in mot)
+    result = []
 
+    for c in mot:
+        if est_voyelle(c):
+            result.append("ol")
+        else:
+            result.append(c + "ol")
+
+    return "".join(result)
 
 def traduire_texte(texte: str, mode: str = "standard") -> str:
     texte = enlever_accents(texte)
