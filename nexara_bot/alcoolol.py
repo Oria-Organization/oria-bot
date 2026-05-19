@@ -25,16 +25,33 @@ def traduire_mot(mot: str) -> str:
     return base + derniere + "ol"
 
 
-# mots uniquement (pas emojis, pas ponctuation)
-WORD_REGEX = r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']+"
+# IMPORTANT : on capture séparément mentions / liens / mots
+TOKEN_REGEX = r"(<@!?\d+>|<#\d+>|https?://\S+|[A-Za-z0-9À-ÿ']+|[^\w\s])"
 
 
 def traduire_texte(texte: str) -> str:
     texte = enlever_accents(texte)
 
-    # on remplace uniquement les mots, tout le reste reste intact
-    def replacer(match):
-        mot = match.group(0)
-        return traduire_mot(mot)
+    tokens = re.findall(TOKEN_REGEX, texte)
 
-    return re.sub(WORD_REGEX, replacer, texte)
+    resultat = []
+
+    for t in tokens:
+
+        # ❌ jamais toucher aux mentions
+        if t.startswith("<@") or t.startswith("<#"):
+            resultat.append(t)
+
+        # liens intacts
+        elif t.startswith("http"):
+            resultat.append(t)
+
+        # mots → traduction
+        elif re.match(r"[A-Za-z0-9À-ÿ']+", t):
+            resultat.append(traduire_mot(t))
+
+        # ponctuation / emojis / x) :)
+        else:
+            resultat.append(t)
+
+    return "".join(resultat)
