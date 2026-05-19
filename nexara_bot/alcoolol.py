@@ -6,11 +6,15 @@ def est_voyelle(c: str) -> bool:
     return c.lower() in "aeiouy"
 
 
-def enlever_accents(texte: str) -> str:
+def enlever_accents(text: str) -> str:
     return ''.join(
-        c for c in unicodedata.normalize('NFD', texte)
-        if unicodedata.category(c) != 'Mn'
+        c for c in unicodedata.normalize("NFD", text)
+        if unicodedata.category(c) != "Mn"
     )
+
+
+# uniquement mots "propres"
+WORD_RE = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:'[A-Za-zÀ-ÖØ-öø-ÿ]+)*$")
 
 
 def traduire_mot(mot: str) -> str:
@@ -25,33 +29,25 @@ def traduire_mot(mot: str) -> str:
     return base + derniere + "ol"
 
 
-# IMPORTANT : on capture séparément mentions / liens / mots
-TOKEN_REGEX = r"(<@!?\d+>|<#\d+>|https?://\S+|[A-Za-z0-9À-ÿ']+|[^\w\s])"
-
-
 def traduire_texte(texte: str) -> str:
     texte = enlever_accents(texte)
 
-    tokens = re.findall(TOKEN_REGEX, texte)
+    tokens = re.findall(r"\s+|[^\s]+", texte)
 
     resultat = []
 
     for t in tokens:
 
-        # ❌ jamais toucher aux mentions
-        if t.startswith("<@") or t.startswith("<#"):
+        # espaces conservés
+        if t.isspace():
             resultat.append(t)
+            continue
 
-        # liens intacts
-        elif t.startswith("http"):
-            resultat.append(t)
-
-        # mots → traduction
-        elif re.match(r"[A-Za-z0-9À-ÿ']+", t):
+        # on ne traite QUE les vrais mots
+        if WORD_RE.match(t):
             resultat.append(traduire_mot(t))
-
-        # ponctuation / emojis / x) :)
         else:
+            # tout le reste ignoré totalement
             resultat.append(t)
 
     return "".join(resultat)
