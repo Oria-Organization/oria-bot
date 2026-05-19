@@ -7,7 +7,7 @@ from nexara_bot.logs import send_log, build_log, setup_dm_listener
 from nexara_bot import wiki as wiki_module
 from nexara_bot import blacklist as bl_module
 from nexara_bot import addwiki as addwiki_module
-from nexara_bot.alcoolol import traduire_texte as alcoolol_traduire
+from nexara_bot.alcoolol import traduire_texte
 
 # ----------------------------
 # IDs staff (depuis .env)
@@ -34,7 +34,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 statuses = [
     "{members} membres",
     "{guilds} serveurs",
-    "Version 0.4.10"
+    "Version 0.5.0.0"
 ]
 
 status_index = 0
@@ -364,10 +364,17 @@ async def unbl(interaction: discord.Interaction, utilisateur_id: str, raison: st
     await bl_module.cmd_unbl(interaction, utilisateur_id, raison, bot)
 
 @bot.tree.command(name="alcoolol", description="Traduit une phrase en langue alcoolol")
-@app_commands.describe(text="Texte à traduire")
-async def alcoolol(interaction: discord.Interaction, text: str):
+@app_commands.describe(
+    text="Texte à traduire",
+    mode="Mode de traduction"
+)
+@app_commands.choices(mode=[
+    app_commands.Choice(name="Standard", value="standard"),
+    app_commands.Choice(name="Avancé", value="avance"),
+])
+async def alcoolol(interaction: discord.Interaction, text: str, mode: app_commands.Choice[str]):
 
-    result = alcoolol_traduire(text)
+    result = traduire_texte(text, mode.value)
 
     if not interaction.channel.permissions_for(interaction.guild.me).manage_webhooks:
         await interaction.response.send_message(
