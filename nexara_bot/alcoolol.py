@@ -1,7 +1,16 @@
 import re
+import unicodedata
+
 
 def est_voyelle(c: str) -> bool:
     return c.lower() in "aeiouy"
+
+
+def enlever_accents(texte: str) -> str:
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', texte)
+        if unicodedata.category(c) != 'Mn'
+    )
 
 
 def traduire_mot(mot: str) -> str:
@@ -16,31 +25,16 @@ def traduire_mot(mot: str) -> str:
     return base + derniere + "ol"
 
 
-# tokens propres Discord
-TOKEN_REGEX = r"(<@!?\d+>|<#\d+>|https?://\S+|[^\s]+)"
+# mots uniquement (pas emojis, pas ponctuation)
+WORD_REGEX = r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']+"
 
 
 def traduire_texte(texte: str) -> str:
-    tokens = re.findall(TOKEN_REGEX, texte)
+    texte = enlever_accents(texte)
 
-    resultat = []
+    # on remplace uniquement les mots, tout le reste reste intact
+    def replacer(match):
+        mot = match.group(0)
+        return traduire_mot(mot)
 
-    for t in tokens:
-
-        # mentions Discord intactes
-        if t.startswith("<@") or t.startswith("<#"):
-            resultat.append(t)
-
-        # liens intacts
-        elif t.startswith("http"):
-            resultat.append(t)
-
-        # emojis (approx Unicode simple)
-        elif len(t) == 1 and not t.isalnum():
-            resultat.append(t)
-
-        # mots normaux
-        else:
-            resultat.append(traduire_mot(t))
-
-    return " ".join(resultat)
+    return re.sub(WORD_REGEX, replacer, texte)
