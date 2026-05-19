@@ -33,7 +33,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 statuses = [
     "{members} membres",
     "{guilds} serveurs",
-    "Version 0.4.2"
+    "Version 0.4.3"
 ]
 
 status_index = 0

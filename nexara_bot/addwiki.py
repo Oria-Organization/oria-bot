@@ -261,25 +261,33 @@ def _strip_generated_footer(content: str) -> str:
     return GENERATED_FOOTER_RE.sub("", content).strip()
 
 
-def build_document_content(title: str, markdown_body: str) -> str:
-    """Ajoute le frontmatter et la signature obligatoire du bot."""
+def build_document_content(title: str, markdown_body: str, code: Optional[str] = None) -> str:
+    """Ajoute le frontmatter et la signature obligatoire du bot.
+    Si un code est fourni, il est injecté dans le frontmatter après title:.
+    """
     clean_title = " ".join(title.strip().splitlines()) or "Sans titre"
     clean_body = _strip_generated_footer(markdown_body)
+    clean_code = code.strip() if code and code.strip() else None
+
+    frontmatter = "---\n"
+    frontmatter += f"title: {clean_title}\n"
+    if clean_code:
+        frontmatter += f"code: {clean_code}\n"
+    frontmatter += "---"
 
     return (
-        "---\n"
-        f"title: {clean_title}\n"
-        "---\n\n"
+        f"{frontmatter}\n\n"
         f"{clean_body}\n\n"
         "---\n\n"
         f"Créé le {_today_fr()}."
     )
 
 
-def parse_document_content(content: str) -> tuple[str, str]:
-    """Sépare un document existant en titre modifiable et corps Markdown."""
+def parse_document_content(content: str) -> tuple[str, str, Optional[str]]:
+    """Sépare un document existant en titre modifiable, corps Markdown et code optionnel."""
     lines = content.splitlines()
     title = ""
+    code = None
     body_start = 0
 
     if lines and lines[0].strip() == "---":
@@ -288,6 +296,9 @@ def parse_document_content(content: str) -> tuple[str, str]:
 
             if stripped.lower().startswith("title:"):
                 title = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+
+            if stripped.lower().startswith("code:"):
+                code = stripped.split(":", 1)[1].strip().strip('"').strip("'") or None
 
             if stripped == "---":
                 body_start = index + 1
@@ -303,7 +314,7 @@ def parse_document_content(content: str) -> tuple[str, str]:
     body = "\n".join(lines[body_start:]).strip()
     body = _strip_generated_footer(body)
 
-    return title or "Sans titre", body
+    return title or "Sans titre", body, code
 
 
 def _parse_pr_title(title: str) -> Optional[tuple[str, str, int]]:
@@ -803,10 +814,11 @@ async def create_document_proposal(
     document_name: str,
     title: str,
     markdown_body: str,
+    code: Optional[str] = None,
 ) -> dict:
     filename = build_document_filename(proposition, document_name)
     file_path = _document_path(proposition, filename)
-    content = build_document_content(title, markdown_body)
+    content = build_document_content(title, markdown_body, code)
 
     async with GitHubClient.from_env() as github:
         if await document_is_duplicate(github, proposition=proposition, filename=filename):
@@ -873,10 +885,11 @@ async def update_document_proposal(
     document_name: str,
     title: str,
     markdown_body: str,
+    code: Optional[str] = None,
 ) -> dict:
     new_filename = build_document_filename(proposal.proposition, document_name)
     new_path = _document_path(proposal.proposition, new_filename)
-    new_content = build_document_content(title, markdown_body)
+    new_content = build_document_content(title, markdown_body, code)
     old_filename = proposal.filename
     old_path = proposal.file_path
 
@@ -1056,13 +1069,23 @@ class CreateDocumentModal(discord.ui.Modal):
             required=True,
             max_length=MAX_MODAL_BODY,
         )
+        self.access_code = discord.ui.TextInput(
+            label="Code d'accès (optionnel)",
+            style=discord.TextStyle.short,
+            placeholder="Laisser vide si le document est public.",
+            required=False,
+            max_length=200,
+        )
 
         self.add_item(self.document_name)
         self.add_item(self.document_title)
         self.add_item(self.markdown_body)
+        self.add_item(self.access_code)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
+
+        code = str(self.access_code.value).strip() or None
 
         try:
             result = await create_document_proposal(
@@ -1071,6 +1094,7 @@ class CreateDocumentModal(discord.ui.Modal):
                 document_name=str(self.document_name.value),
                 title=str(self.document_title.value),
                 markdown_body=str(self.markdown_body.value),
+                code=code,
             )
         except AddWikiError as exc:
             await interaction.followup.send(f"❌ {exc}", ephemeral=True)
@@ -1093,6 +1117,7 @@ class CreateDocumentModal(discord.ui.Modal):
                 ("Document", result["filename"], False),
                 ("Branche", result["branch"], False),
                 ("Pull Request", pr["html_url"], False),
+                ("Code d'accès", "Oui" if code else "Non", True),
             ],
         )
 
@@ -1105,6 +1130,8 @@ class CreateDocumentModal(discord.ui.Modal):
         embed.add_field(name="Document", value=f"`{result['filename']}`", inline=False)
         embed.add_field(name="Pull Request", value=f"[Ouvrir la PR]({pr['html_url']})", inline=False)
         embed.add_field(name="Branche", value=f"`{result['branch']}`", inline=False)
+        if code:
+            embed.add_field(name="Code d'accès", value="✅ Défini", inline=True)
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -1112,7 +1139,7 @@ class CreateDocumentModal(discord.ui.Modal):
 class EditDocumentModal(discord.ui.Modal):
     """Modal de modification d'une PR déjà ouverte."""
 
-    def __init__(self, proposal: WikiProposal, title: str, body: str):
+    def __init__(self, proposal: WikiProposal, title: str, body: str, code: Optional[str] = None):
         super().__init__(title="Modifier la proposition")
         self.proposal = proposal
 
@@ -1143,13 +1170,24 @@ class EditDocumentModal(discord.ui.Modal):
             required=True,
             max_length=MAX_MODAL_BODY,
         )
+        self.access_code = discord.ui.TextInput(
+            label="Code d'accès (optionnel)",
+            style=discord.TextStyle.short,
+            placeholder="Laisser vide pour supprimer le code existant.",
+            default=code or "",
+            required=False,
+            max_length=200,
+        )
 
         self.add_item(self.document_name)
         self.add_item(self.document_title)
         self.add_item(self.markdown_body)
+        self.add_item(self.access_code)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
+
+        code = str(self.access_code.value).strip() or None
 
         try:
             result = await update_document_proposal(
@@ -1158,6 +1196,7 @@ class EditDocumentModal(discord.ui.Modal):
                 document_name=str(self.document_name.value),
                 title=str(self.document_title.value),
                 markdown_body=str(self.markdown_body.value),
+                code=code,
             )
         except AddWikiError as exc:
             await interaction.followup.send(f"❌ {exc}", ephemeral=True)
@@ -1178,6 +1217,7 @@ class EditDocumentModal(discord.ui.Modal):
                 ("Document", result["filename"], False),
                 ("PR", f"#{result['pr_number']}", True),
                 ("Branche", result["branch"], False),
+                ("Code d'accès", "Oui" if code else "Non", True),
             ],
         )
 
@@ -1374,7 +1414,7 @@ async def cmd_modifier_document(interaction: discord.Interaction, document: str)
         )
         return
 
-    title, body = parse_document_content(current_file.content)
+    title, body, code = parse_document_content(current_file.content)
 
     if len(body) > MAX_MODAL_BODY:
         await interaction.response.send_message(
@@ -1383,7 +1423,7 @@ async def cmd_modifier_document(interaction: discord.Interaction, document: str)
         )
         return
 
-    await interaction.response.send_modal(EditDocumentModal(proposal, title, body))
+    await interaction.response.send_modal(EditDocumentModal(proposal, title, body, code))
 
 
 async def cmd_view_document(
@@ -1427,6 +1467,8 @@ async def cmd_view_document(
         )
         return
 
+    _, _, code = parse_document_content(current_file.content)
+
     embed = discord.Embed(
         title=f"Proposition wiki #{proposal.pr_number}",
         color=discord.Color.blurple(),
@@ -1440,6 +1482,7 @@ async def cmd_view_document(
     )
     embed.add_field(name="Pull Request", value=f"[Ouvrir sur GitHub]({proposal.html_url})", inline=False)
     embed.add_field(name="Branche", value=f"`{proposal.branch}`", inline=False)
+    embed.add_field(name="Code d'accès", value="🔒 Défini" if code else "🔓 Aucun", inline=True)
     embed.add_field(
         name="Contenu markdown",
         value=f"```md\n{_truncate(current_file.content, 980)}\n```",

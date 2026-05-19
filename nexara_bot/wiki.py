@@ -423,6 +423,34 @@ def _extract_title_from_md(content: str) -> str:
     return "Sans titre"
 
 
+def _extract_code_from_md(content: str) -> Optional[str]:
+    """
+    Extrait le champ code: depuis le frontmatter YAML.
+    Retourne None si absent.
+
+    ---
+    code: MonCodeSecret
+    ---
+    """
+
+    lines = content.splitlines()
+
+    if not lines or lines[0].strip() != "---":
+        return None
+
+    for line in lines[1:]:
+        stripped = line.strip()
+
+        if stripped == "---":
+            break
+
+        if stripped.lower().startswith("code:"):
+            code = stripped.split(":", 1)[1].strip()
+            return code.strip('"').strip("'") or None
+
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Conversion Markdown → liste d'Embeds Discord (pagination)
 # ---------------------------------------------------------------------------
@@ -592,6 +620,46 @@ def md_to_embeds(
 
 
 # ---------------------------------------------------------------------------
+# Modal de saisie du code d'accès
+# ---------------------------------------------------------------------------
+
+class CodeAccesModal(discord.ui.Modal, title="Accréditation requise"):
+    """Modal demandant le code d'accès au document."""
+
+    code_saisi = discord.ui.TextInput(
+        label="Code d'accès",
+        placeholder="Saisir le code…",
+        required=True,
+        max_length=200,
+    )
+
+    def __init__(self, code_attendu: str, embeds: list[discord.Embed]):
+        super().__init__()
+        self._code_attendu = code_attendu
+        self._embeds = embeds
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        saisi = self.code_saisi.value.strip()
+
+        if saisi != self._code_attendu:
+            await interaction.response.send_message(
+                "❌ Erreur système.",
+                ephemeral=True,
+            )
+            return
+
+        if len(self._embeds) == 1:
+            await interaction.response.send_message(embed=self._embeds[0])
+        else:
+            view = WikiView(self._embeds)
+            msg = await interaction.response.send_message(
+                embed=self._embeds[0],
+                view=view,
+            )
+            view.message = msg
+
+
+# ---------------------------------------------------------------------------
 # Vue de pagination
 # ---------------------------------------------------------------------------
 
@@ -674,6 +742,8 @@ async def display_wiki_document(
     """
     Récupère et affiche un document wiki dans le channel.
     document_value : chemin "dossier/fichier.md"
+    Si le frontmatter contient un champ code:, un modal est affiché
+    pour demander le code d'accès avant d'envoyer le document.
     """
 
     resolved = _resolve_document_value(document_value)
@@ -712,14 +782,26 @@ async def display_wiki_document(
         except (RuntimeError, aiohttp.ClientError, asyncio.TimeoutError) as e:
 
             await interaction.followup.send(
-                f"❌ {e or 'Temps d’attente dépassé pendant la récupération du document.'}",
+                f"❌ {e or 'Temps d'attente dépassé pendant la récupération du document.'}",
                 ephemeral=True
             )
 
             return
 
     embeds = md_to_embeds(content)
+    code_attendu = _extract_code_from_md(content)
 
+    # ── Document protégé : on envoie le modal via un message éphémère avec bouton ──
+    if code_attendu:
+        view = _CodeAccesView(code_attendu, embeds)
+        await interaction.followup.send(
+            "🔒 Ce document est protégé. Cliquez sur le bouton ci-dessous pour saisir le code d'accès.",
+            view=view,
+            ephemeral=True,
+        )
+        return
+
+    # ── Document sans code : affichage direct ──
     if len(embeds) == 1:
 
         await interaction.followup.send(
@@ -736,3 +818,26 @@ async def display_wiki_document(
         )
 
         view.message = msg
+
+
+# ---------------------------------------------------------------------------
+# Bouton intermédiaire pour ouvrir le modal (nécessaire après defer)
+# ---------------------------------------------------------------------------
+
+class _CodeAccesView(discord.ui.View):
+    """Vue éphémère avec un seul bouton qui ouvre le modal de code."""
+
+    def __init__(self, code_attendu: str, embeds: list[discord.Embed]):
+        super().__init__(timeout=120.0)
+        self._code_attendu = code_attendu
+        self._embeds = embeds
+
+    @discord.ui.button(label="🔑 Saisir le code", style=discord.ButtonStyle.danger)
+    async def ouvrir_modal(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(
+            CodeAccesModal(self._code_attendu, self._embeds)
+        )
