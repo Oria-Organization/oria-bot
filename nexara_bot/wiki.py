@@ -780,9 +780,9 @@ async def display_wiki_document(
             return
 
         except (RuntimeError, aiohttp.ClientError, asyncio.TimeoutError) as e:
-
+            msg = str(e) or "Temps d'attente dépassé pendant la récupération du document."
             await interaction.followup.send(
-                f"❌ {e or \"Temps d'attente dépassé pendant la récupération du document.\"}",
+                f"❌ {msg}",
                 ephemeral=True
             )
 
