@@ -7,6 +7,7 @@ from nexara_bot.logs import send_log, build_log, setup_dm_listener
 from nexara_bot import wiki as wiki_module
 from nexara_bot import blacklist as bl_module
 from nexara_bot import addwiki as addwiki_module
+from nexara_bot.alcoolol import traduire_texte as alcoolol_traduire
 
 # ----------------------------
 # IDs staff (depuis .env)
@@ -33,7 +34,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 statuses = [
     "{members} membres",
     "{guilds} serveurs",
-    "Version 0.4.5"
+    "Version 0.4.6"
 ]
 
 status_index = 0
@@ -362,6 +363,34 @@ async def unbl(interaction: discord.Interaction, utilisateur_id: str, raison: st
         return
     await bl_module.cmd_unbl(interaction, utilisateur_id, raison, bot)
 
+@bot.tree.command(name="alcoolol", description="Traduit une phrase en langue alcoolol")
+@app_commands.describe(text="Texte à traduire")
+async def alcoolol(interaction: discord.Interaction, text: str):
+
+    result = alcoolol_traduire(text)
+
+    if not interaction.channel.permissions_for(interaction.guild.me).manage_webhooks:
+        await interaction.response.send_message(
+            "❌ Permission webhook manquante.",
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    webhook = await interaction.channel.create_webhook(name="AlcoololTemp")
+
+    try:
+        await webhook.send(
+            content=result,
+            username=interaction.user.display_name,
+            avatar_url=interaction.user.display_avatar.url
+        )
+
+    finally:
+        await webhook.delete()
+
+    await interaction.followup.send("✅ Message envoyé.", ephemeral=True)
 
 # ----------------------------
 # Événements
