@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
+from datetime import datetime
 import os
 
 from nexara_bot.logs import send_log, build_log, setup_dm_listener
@@ -8,6 +9,7 @@ from nexara_bot import wiki as wiki_module
 from nexara_bot import blacklist as bl_module
 from nexara_bot import addwiki as addwiki_module
 from nexara_bot.alcoolol import traduire_texte
+from nexara_bot import utilitaires
 
 # ----------------------------
 # IDs staff (depuis .env)
@@ -34,10 +36,12 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 statuses = [
     "{members} membres",
     "{guilds} serveurs",
-    "Version 0.5.0.2"
+    "Version 0.5.1.0"
 ]
 
 status_index = 0
+
+START_TIME: datetime | None = None
 
 
 # ----------------------------
@@ -400,6 +404,27 @@ async def alcoolol(interaction: discord.Interaction, text: str, mode: app_comman
 
     await interaction.followup.send("✅ Message envoyé.", ephemeral=True)
 
+@bot.tree.command(name="statut-bot", description="Afficher les statistiques du bot")
+async def statut_bot(interaction: discord.Interaction):
+    version = next(
+        (s for s in statuses if s.startswith("Version")),
+        "Inconnue"
+    )
+    stats = utilitaires.get_bot_stats(bot, START_TIME, version)
+
+    embed = discord.Embed(
+        title="📊 Statut du bot",
+        color=discord.Color.blurple()
+    )
+    embed.add_field(name="🏷️ Version",   value=stats["version"],            inline=True)
+    embed.add_field(name="📡 Latence",   value=f"{stats['latence_ms']} ms", inline=True)
+    embed.add_field(name="⏱️ Uptime",    value=stats["uptime"],             inline=True)
+    embed.add_field(name="🌐 Serveurs",  value=str(stats["serveurs"]),      inline=True)
+    embed.add_field(name="👥 Membres",   value=str(stats["membres"]),       inline=True)
+    embed.add_field(name="⚙️ Commandes", value=str(stats["commandes"]),     inline=True)
+
+    await interaction.response.send_message(embed=embed)
+
 # ----------------------------
 # Événements
 # ----------------------------
@@ -408,6 +433,8 @@ async def alcoolol(interaction: discord.Interaction, text: str, mode: app_comman
 async def on_ready():
     await bot.tree.sync()
     setup_dm_listener(bot)
+    global START_TIME
+    START_TIME = datetime.now()
 
     if not change_status.is_running():
         change_status.start()
