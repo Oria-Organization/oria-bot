@@ -34,7 +34,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 statuses = [
     "{members} membres",
     "{guilds} serveurs",
-    "Version 0.5.0.1"
+    "Version 0.5.0.2"
 ]
 
 status_index = 0
@@ -391,7 +391,8 @@ async def alcoolol(interaction: discord.Interaction, text: str, mode: app_comman
         await webhook.send(
             content=result,
             username=interaction.user.display_name,
-            avatar_url=interaction.user.display_avatar.url
+            avatar_url=interaction.user.display_avatar.url,
+            allowed_mentions=discord.AllowedMentions.none()
         )
 
     finally:
