@@ -9,7 +9,7 @@ from nexara_bot import wiki as wiki_module
 from nexara_bot import blacklist as bl_module
 from nexara_bot import addwiki as addwiki_module
 from nexara_bot.alcoolol import traduire_texte
-from nexara_bot import utilitaires
+from nexara_bot.utilitaires import get_bot_stats
 
 # ----------------------------
 # IDs staff (depuis .env)
@@ -36,7 +36,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 statuses = [
     "{members} membres",
     "{guilds} serveurs",
-    "Version 0.5.1.0"
+    "Version 0.5.1.1"
 ]
 
 status_index = 0
@@ -410,7 +410,7 @@ async def statut_bot(interaction: discord.Interaction):
         (s for s in statuses if s.startswith("Version")),
         "Inconnue"
     )
-    stats = utilitaires.get_bot_stats(bot, START_TIME, version)
+    stats = get_bot_stats(bot, START_TIME, version)
 
     embed = discord.Embed(
         title="📊 Statut du bot",
