@@ -1,14 +1,61 @@
-# Nexara Bot — Versioning
+# Nexara Bot / Projet Oria Bot
 
-Le bot suit une convention de version à 3 chiffres : **V.X.Y.Z**
+## Sommaire
+- Présentation
+- Structure du REPO
+- Fonctionnement des versions
+- Crédits
 
----
+## Présentation
 
-## V.**X**.0.0 — Majeur
-Quand **X** augmente, une refonte importante a eu lieu : changement d'architecture, réécriture d'une grande partie du bot, ou ajout d'un système structurant (nouveau module, nouvelle base de données, etc.).
+  Bienvenue sur le GitHub officiel du bot Nexara.
+Ce dépôt a pour objectif d'héberger le code de notre ou nos bots pour son fonctionnement.
 
-## V.0.**Y**.0 — Mineur
-Quand **Y** augmente, une nouvelle fonctionnalité a été ajoutée au bot (nouvelle commande slash, nouveau comportement, nouvelle intégration).
+## Structure du REPO
+```
+oria-bot/
+├── README.md
+├── main.py
+├── .gitignore
+├── requirements.txt
+└── nexara_bot/
+    ├── json/
+    │   └── blacklist.json
+    ├── __init__.py
+    ├── bot1.py
+    ├── logs.py
+    ├── addwiki.py
+    ├── alcoolol.py
+    ├── blacklist.py
+    ├── utilitaires.py
+    └── wiki.py
+```
 
-## V.0.0.**Z** — Patch
-Quand **Z** augmente, un bug a été corrigé ou une fonctionnalité existante a été améliorée sans ajout de nouveau contenu.
+## Fonctionnement des versions
+Le système de versions de ce dépôt fonctionne ainsi :
+*Les versions du bot sont affichées en faisant "/statut-bot" ou sur son statut.*
+
+### Version X.0.0.0
+Quand X augmente, cela signifie qu’un changement majeur a été effectué sur le site.
+
+### Version 0.Y.0.0
+Quand Y augmente, cela indique des modifications mineures, mais tout de même importantes.
+
+### Version 0.0.Z.0
+Quand Z augmente, cela correspond à de petites améliorations ou ajouts.
+
+### Version 0.0.0.A
+Quand A augmente, cela représente des corrections ou des ajustements sur les modifications effectuées.
+
+
+## Crédits
+
+Projet développé par divin_hunter
+Contact : mondeoria.official@gmail.com
+
+Merci à tous ceux qui contribuent à l’évolution du bot et à la vie du monde d’Oria.
+Je remercie surtout @rababio pour sa contribution et l'hébergement du bot.
+
+![Logo Oria Production](https://oria-organization.github.io/oria-wiki/images/logo/oria_production.png)
+
+© 2025/2026 Oria Production
