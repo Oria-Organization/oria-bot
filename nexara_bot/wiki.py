@@ -640,13 +640,31 @@ def md_to_embeds(
             ):
                 _flush_embed()
 
-            current_embed.add_field(
-                name=field_name,
-                value=chunk,
-                inline=False
-            )
+            formatted_chunk = f"## {field_name}\n{chunk}"
 
-            current_chars += field_chars
+            # Si ça rentre dans la description → on privilégie ça
+            if (
+                len(current_embed.description or "")
+                + len(formatted_chunk)
+            ) <= 4096:
+
+                current_embed.description = (
+                    (current_embed.description or "")
+                    + "\n\n"
+                    + formatted_chunk
+                ).strip()
+
+                current_chars += len(formatted_chunk)
+
+            else:
+                # Sinon fallback en field
+                current_embed.add_field(
+                    name=field_name,
+                    value=chunk,
+                    inline=False
+                )
+
+                current_chars += len(field_name) + len(chunk)
 
     # Finalisation
     if current_embed.fields or not embeds:
