@@ -580,41 +580,90 @@ def md_to_embeds(
     current_embed = discord.Embed(title=title, colour=colour)
     current_chars = len(title)
 
+
+    def _new_embed(is_suite: bool = False) -> discord.Embed:
+        embed_title = title if not is_suite else f"{title} (suite)"
+        return discord.Embed(
+            title=embed_title[:256],
+            colour=colour
+        )
+
+
     def _flush_embed():
         nonlocal current_embed, current_chars
-        embeds.append(current_embed)
-        current_embed = discord.Embed(title=f"{title} (suite)"[:256], colour=colour)
+
+        # Ne pas créer d'embed vide
+        if current_embed.fields:
+            embeds.append(current_embed)
+
+        current_embed = _new_embed(is_suite=True)
         current_chars = len(current_embed.title or "")
 
+
     for (heading, body) in sections:
+
         chunks = _split_body_into_chunks(body)
 
+        # ---------------------------------------------------------------
+        # Si une section est découpée :
+        # - premier morceau = nom normal
+        # - morceaux suivants = nouveau embed propre
+        # ---------------------------------------------------------------
+
         for chunk_index, chunk in enumerate(chunks):
+
             field_name = (heading or "\u200b")
+
+            # -----------------------------------------------------------
+            # IMPORTANT :
+            # Au lieu de faire "Hiérarchie (suite)" dans le même embed,
+            # on force un NOUVEL embed pour garder quelque chose de propre.
+            # -----------------------------------------------------------
+
             if chunk_index > 0:
-                field_name = f"{field_name} (suite)"
+
+                # Si l'embed actuel contient déjà des fields,
+                # on passe sur une nouvelle page
+                if current_embed.fields:
+                    _flush_embed()
+
+                field_name = heading or "\u200b"
+
             field_name = field_name[:MAX_FIELD_NAME]
 
             field_chars = len(field_name) + len(chunk)
 
-            # Nouvel embed si on dépasse les limites
+            # Nouvel embed si limites dépassées
             if current_embed.fields and (
                 current_chars + field_chars > MAX_EMBED_CHARS
                 or len(current_embed.fields) >= MAX_FIELDS
             ):
                 _flush_embed()
 
-            current_embed.add_field(name=field_name, value=chunk, inline=False)
+            current_embed.add_field(
+                name=field_name,
+                value=chunk,
+                inline=False
+            )
+
             current_chars += field_chars
 
     # Finalisation
     if current_embed.fields or not embeds:
         embeds.append(current_embed)
 
-    # Numérotation des pages
+    # -------------------------------------------------------------------
+    # Boutons uniquement si plusieurs pages
+    # -------------------------------------------------------------------
+
     total = len(embeds)
+
     for i, embed in enumerate(embeds):
-        embed.set_footer(text=f"Page {i + 1} / {total}")
+
+        if total > 1:
+            embed.set_footer(
+                text=f"Page {i + 1} / {total}"
+            )
 
     return embeds
 
@@ -675,20 +724,34 @@ class WikiView(discord.ui.View):
 
         self.embeds = embeds
         self.current_page = 0
+        self.message: Optional[discord.Message] = None
 
         self._update_buttons()
 
     def _update_buttons(self):
 
-        self.prev_button.disabled = self.current_page == 0
+        self.prev_button.disabled = self.current_page <= 0
 
         self.next_button.disabled = (
-            self.current_page == len(self.embeds) - 1
+            self.current_page >= len(self.embeds) - 1
+        )
+
+    async def _edit_page(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        self._update_buttons()
+
+        await interaction.response.edit_message(
+            embed=self.embeds[self.current_page],
+            view=self
         )
 
     @discord.ui.button(
         label="◀ Précédent",
-        style=discord.ButtonStyle.secondary
+        style=discord.ButtonStyle.secondary,
+        row=0
     )
     async def prev_button(
         self,
@@ -696,18 +759,17 @@ class WikiView(discord.ui.View):
         button: discord.ui.Button
     ):
 
+        if self.current_page <= 0:
+            return
+
         self.current_page -= 1
 
-        self._update_buttons()
-
-        await interaction.response.edit_message(
-            embed=self.embeds[self.current_page],
-            view=self
-        )
+        await self._edit_page(interaction)
 
     @discord.ui.button(
         label="Suivant ▶",
-        style=discord.ButtonStyle.secondary
+        style=discord.ButtonStyle.secondary,
+        row=0
     )
     async def next_button(
         self,
@@ -715,19 +777,25 @@ class WikiView(discord.ui.View):
         button: discord.ui.Button
     ):
 
+        if self.current_page >= len(self.embeds) - 1:
+            return
+
         self.current_page += 1
 
-        self._update_buttons()
-
-        await interaction.response.edit_message(
-            embed=self.embeds[self.current_page],
-            view=self
-        )
+        await self._edit_page(interaction)
 
     async def on_timeout(self):
 
         for item in self.children:
             item.disabled = True
+
+        if self.message:
+
+            try:
+                await self.message.edit(view=self)
+
+            except Exception:
+                pass
 
 
 # ---------------------------------------------------------------------------
